@@ -7,7 +7,9 @@
 This project collects existing foraminifera abundance data in the Last Glacial Maximum/preindustrial age and look up the nearest sea surface temperature data.
 
 + Contact: Rui Ying (rui.ying@bristol.ac.uk)
-+ Publication citation: Ying, R., Monteiro, F. M., Wilson, J. D., & Schmidt, D. N. (2023). in submission
++ Publication citation:
+Ying, R., Monteiro, F. M., Wilson, J. D., Ödalen M., and Schmidt, D. N.: Past foraminiferal acclimatization capacity is limited during future warming, Nature, https://doi.org/10.1038/s41586-024-08029-0
+
 
 #+BEGIN_QUOTE
 We only use MARGO and ForCenS in the latest manuscript version, despite related scripts on other dataset (e.g., CLIMAP) still retained here.
