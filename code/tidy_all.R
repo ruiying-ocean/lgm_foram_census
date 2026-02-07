@@ -48,7 +48,7 @@ wdf <- ldf %>%
     values_fn = list
   )
 
-wdf <- wdf %>% unnest(cols = `O. universa`:`G. uvula`)
+wdf <- wdf %>% unnest(where(is.list))
 ## remove duplicate rows
 wdf <- wdf[!duplicated(wdf), ]
 
@@ -75,7 +75,7 @@ wdf <- ldf %>%
     values_fn = list
   )
 
-wdf <- wdf %>% unnest(`O. universa`:`G. uvula`)
+wdf <- wdf %>% unnest(where(is.list))
 
 ## remove duplicate rows
 wdf <- wdf[!duplicated(wdf), ]
@@ -107,7 +107,7 @@ wdf <- ldf %>%
     values_fn = list
   )
 
-wdf <- wdf%>%  unnest(cols = `symbiont-barren non-spinose`:`undetermined non-spinose`)
+wdf <- wdf %>% unnest(where(is.list))
 
 ## remove duplicate rows
 wdf <- wdf[!duplicated(wdf), ]
@@ -137,7 +137,7 @@ wdf <- ldf %>% pivot_wider(
   values_fn = list
 )
 
-wdf <- wdf %>% unnest(cols = c(`symbiont-barren non-spinose`:`symbiont-facultative spinose`))
+wdf <- wdf %>% unnest(where(is.list))
 
 ## remove duplicate rows
 wdf <- wdf[!duplicated(wdf), ]
