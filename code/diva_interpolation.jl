@@ -17,6 +17,7 @@ const MIN_OBS  = 10                # skip species with fewer valid observations
 
 const BATHY_URL  = "https://dox.ulg.ac.be/index.php/s/U0pqyXhcQrXjEUX/download"
 const BATHY_FILE = joinpath(@__DIR__, "..", "data", "gebco_30sec_16.nc")
+const LGM_BATHY  = joinpath(@__DIR__, "..", "data", "I7G_NA.VM7_1deg.21.nc")
 
 const LGM_CSV     = joinpath(@__DIR__, "..", "tidy", "lgm_sp_r_tidy.csv")
 const FORCENS_CSV  = joinpath(@__DIR__, "..", "tidy", "forcens_sp_r_tidy.csv")
@@ -40,6 +41,37 @@ end
 
 function create_mask()
     _, _, mask = load_mask(BATHY_FILE, true, GRID_LON, GRID_LAT, 0)
+    return mask
+end
+
+"""
+Create an ocean mask from ICE-7G_NA (VM7) LGM topography (Peltier et al.).
+Ocean cells have Topo < 0.  The file uses lon 0.5–359.5 (1° cell centers),
+so we shift to -179.5–179.5 and nearest-neighbour sample onto our grid.
+"""
+function create_lgm_mask()
+    ds = NCDataset(LGM_BATHY)
+    lon_src = ds["lon"][:]      # 0.5 : 359.5
+    lat_src = ds["lat"][:]      # -89.5 : 89.5
+    topo    = ds["Topo"][:, :]  # (360, 180)
+    close(ds)
+
+    # Shift longitude from 0-360 to -180–180 convention
+    shift = findfirst(>=(180.5), lon_src)  # index where lon >= 180.5
+    lon_shifted = vcat(lon_src[shift:end] .- 360, lon_src[1:shift-1])
+    topo_shifted = vcat(topo[shift:end, :], topo[1:shift-1, :])
+
+    # Build mask on our target grid via nearest-neighbour lookup
+    nx, ny = length(GRID_LON), length(GRID_LAT)
+    mask = falses(nx, ny)
+
+    for j in 1:ny, i in 1:nx
+        # Find nearest source cell
+        ii = argmin(abs.(lon_shifted .- Float64(GRID_LON[i])))
+        jj = argmin(abs.(lat_src     .- Float64(GRID_LAT[j])))
+        mask[i, j] = topo_shifted[ii, jj] < 0   # ocean where topo < 0
+    end
+
     return mask
 end
 
@@ -214,8 +246,9 @@ function main()
 
     download_bathymetry()
     xi, yi, pm, pn = setup_grid()
-    mask = create_mask()
-    @info "Grid: $(size(xi)), ocean cells: $(count(mask))"
+    mask_pi  = create_mask()
+    mask_lgm = create_lgm_mask()
+    @info "Grid: $(size(xi)), PI ocean cells: $(count(mask_pi)), LGM ocean cells: $(count(mask_lgm))"
 
     # ── LGM ──────────────────────────────────────────────────────────────
     lon_lgm, lat_lgm, sp_lgm, data_lgm = load_lgm_data()
@@ -224,12 +257,12 @@ function main()
     for (i, sp) in enumerate(sp_lgm)
         @info "  LGM [$i/$(length(sp_lgm))] $sp"
         fields_lgm[sp] = interpolate_species(
-            xi, yi, pm, pn, mask,
+            xi, yi, pm, pn, mask_lgm,
             lon_lgm, lat_lgm, data_lgm[sp])
     end
 
-    renormalize!(fields_lgm, mask)
-    save_netcdf(LGM_NC, sp_lgm, fields_lgm, mask;
+    renormalize!(fields_lgm, mask_lgm)
+    save_netcdf(LGM_NC, sp_lgm, fields_lgm, mask_lgm;
                 title="LGM planktonic foraminifera relative abundance (DIVAnd)")
 
     # ── ForCenS (PI) ─────────────────────────────────────────────────────
@@ -239,12 +272,12 @@ function main()
     for (i, sp) in enumerate(sp_fc)
         @info "  ForCenS [$i/$(length(sp_fc))] $sp"
         fields_fc[sp] = interpolate_species(
-            xi, yi, pm, pn, mask,
+            xi, yi, pm, pn, mask_pi,
             lon_fc, lat_fc, data_fc[sp])
     end
 
-    renormalize!(fields_fc, mask)
-    save_netcdf(FORCENS_NC, sp_fc, fields_fc, mask;
+    renormalize!(fields_fc, mask_pi)
+    save_netcdf(FORCENS_NC, sp_fc, fields_fc, mask_pi;
                 title="PI (ForCenS) planktonic foraminifera relative abundance (DIVAnd)")
 
     @info "Done."
